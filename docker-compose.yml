@@ -1,0 +1,41 @@
+version: "3.8"
+
+services:
+
+  postgres:
+    image: postgres:16
+    container_name: tsdb_postgres
+
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: warehouse_restore
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  benchmark:
+
+    build: ./benchmark
+
+    container_name: tsdb_benchmark
+
+    depends_on:
+      - postgres
+
+    volumes:
+      - ./benchmark/results:/app/results
+      - ./benchmark/reports:/app/reports
+
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: warehouse_restore
+      DB_USER: admin
+      DB_PASSWORD: admin
+
+volumes:
+  pgdata:
