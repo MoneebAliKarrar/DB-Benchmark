@@ -1,41 +1,70 @@
-version: "3.8"
+version: "3.9"
 
 services:
-
   postgres:
     image: postgres:16
     container_name: tsdb_postgres
-
+    restart: unless-stopped
     environment:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: admin
       POSTGRES_DB: warehouse_restore
-
     ports:
       - "5432:5432"
-
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pg_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 8G
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d warehouse_restore"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: tsdb_timescaledb
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: warehouse_restore
+    ports:
+      - "5433:5432"
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+    deploy:
+      resources:
+        limits:
+          cpus: "4"
+          memory: 8G
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d warehouse_restore"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   benchmark:
-
-    build: ./benchmark
-
+    build:
+      context: ./benchmark
     container_name: tsdb_benchmark
-
+    extra_hosts:
+    - "host.docker.internal:host-gateway"
     depends_on:
-      - postgres
-
+      postgres:
+        condition: service_healthy
+      timescaledb:
+        condition: service_healthy
     volumes:
-      - ./benchmark/results:/app/results
-      - ./benchmark/reports:/app/reports
-
-    environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: warehouse_restore
-      DB_USER: admin
-      DB_PASSWORD: admin
+      - ./benchmark:/app
+    # Override target/mode at run time, e.g.:
+    #   docker compose run --rm benchmark python benchmark.py --target timescaledb
+    #   docker compose run --rm benchmark python benchmark.py --target postgres 
+    command: ["python", "benchmark.py", "--target", "postgres"]
 
 volumes:
-  pgdata:
+  pg_data:
+  timescale_data:
