@@ -8,9 +8,6 @@ possible;
 def build_queries(sample_part_ids: list[str]):
     return {
         
-        
-        
-
         "arrow_stream_smoke_test": (
             """
             SELECT * FROM tensoryze.processexecution
@@ -20,6 +17,8 @@ def build_queries(sample_part_ids: list[str]):
             None,
             "Arrow-stream smoke test",
         ),
+        
+        
 
         "timestamp_range_sanity": (
             """
@@ -29,6 +28,7 @@ def build_queries(sample_part_ids: list[str]):
             None,
             "UTC/timestamp-range sanity",
         ),
+
         "partquality_read": (
             """
             SELECT pe.*
@@ -41,6 +41,7 @@ def build_queries(sample_part_ids: list[str]):
             None,
             "Read processexecution rows matching partquality dataset",
         ),
+        
         "per_part_read": (
             """
             SELECT pe."timestamp", pe.id AS part_id, pe."_field" AS field_name, pe.namespace_id,

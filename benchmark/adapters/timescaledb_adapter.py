@@ -41,3 +41,9 @@ class TimescaleDBAdapter(PostgresAdapter):
         cur.execute(
             "SELECT create_hypertable('tensoryze.processexecution', 'timestamp', if_not_exists => TRUE, migrate_data => TRUE);"
         )
+
+    def storage_size_mb(self) -> float:
+        result, _ = self.run_query(
+            "SELECT hypertable_size('tensoryze.processexecution');"
+        )
+        return result[0][0] / (1024 * 1024)
