@@ -47,6 +47,43 @@ services:
       timeout: 5s
       retries: 10
 
+  starrocks-fe:
+    image: starrocks/fe-ubuntu:4.0-latest
+    container_name: tsdb_starrocks_fe
+    hostname: starrocks-fe
+    user: root
+    command: >
+      bash /opt/starrocks/fe/bin/start_fe.sh --host_type FQDN
+    ports:
+      - "8030:8030"
+      - "9020:9020"
+      - "9030:9030"
+    volumes:
+      - starrocks_fe_data:/opt/starrocks/fe/meta
+      - starrocks_fe_log:/opt/starrocks/fe/log
+    environment:
+      - TZ=UTC
+
+
+  starrocks-be:
+    image: starrocks/be-ubuntu:4.0-latest
+    container_name: tsdb_starrocks_be
+    hostname: starrocks-be
+    user: root
+    depends_on:
+      - starrocks-fe
+    command: >
+      bash /opt/starrocks/be/bin/start_be.sh
+    ports:
+      - "8040:8040"
+      - "9050:9050"
+      - "9060:9060"
+    volumes:
+      - starrocks_be_data:/opt/starrocks/be/storage
+      - starrocks_be_log:/opt/starrocks/be/log
+    environment:
+      - TZ=UTC
+
   benchmark:
     build:
       context: ./benchmark
@@ -65,6 +102,54 @@ services:
     #   docker compose run --rm benchmark python benchmark.py --target postgres 
     command: ["python", "benchmark.py", "--target", "postgres"]
 
+  ingestion:
+    build:
+      context: ./ingestion
+    container_name: tsdb_ingestion
+    volumes:
+      - ./data/sparkplug_synthetic:/data:ro
+      - ./results:/results
+    networks:
+      - tsdb-research_default
+      - db-benchmark-research_default
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: tsdb_clickhouse
+    restart: unless-stopped
+
+    ports:
+      - "8123:8123"   # HTTP interface
+      - "9000:9000"   # native ClickHouse protocol
+
+    environment:
+      CLICKHOUSE_DB: warehouse
+      CLICKHOUSE_USER: admin
+      CLICKHOUSE_PASSWORD: admin
+
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./data/starrocks:/data:ro
+
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+    networks:
+      - db-benchmark-research_default
+
 volumes:
   pg_data:
   timescale_data:
+  starrocks_fe_data:
+  starrocks_fe_log:
+  starrocks_be_data:
+  starrocks_be_log:
+  clickhouse_data:
+
+networks:
+  tsdb-research_default:
+    external: true
+  db-benchmark-research_default:
+    external: true

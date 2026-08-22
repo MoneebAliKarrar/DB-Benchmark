@@ -1,6 +1,6 @@
 """
 Queries sourced from Tim's and custom , filtered to the rows
-tagged `tensoryze.processexecution`. Copied as close to verbatim as
+tagged `tensoryze.processexecution_opt`. Copied as close to verbatim as
 possible;
 """
 def build_queries(sample_part_ids: list[str], target: str):
@@ -20,7 +20,7 @@ def build_queries(sample_part_ids: list[str], target: str):
         one_day_ago = f"""
             DATE_SUB(
                 (SELECT MAX({ts})
-                 FROM tensoryze.processexecution),
+                 FROM tensoryze.processexecution_time_opt),
                 INTERVAL 1 DAY
             )
         """
@@ -33,7 +33,7 @@ def build_queries(sample_part_ids: list[str], target: str):
         one_day_ago = f"""
             (
                 SELECT MAX({ts}) - INTERVAL '1 day'
-                FROM tensoryze.processexecution
+                FROM tensoryze.processexecution_time_opt
             )
         """
 
@@ -48,7 +48,7 @@ def build_queries(sample_part_ids: list[str], target: str):
         "arrow_stream_smoke_test": (
             f"""
             SELECT *
-            FROM tensoryze.processexecution
+            FROM tensoryze.processexecution_time_opt
             ORDER BY {ts} DESC
             LIMIT 100000
             """,
@@ -60,7 +60,7 @@ def build_queries(sample_part_ids: list[str], target: str):
             f"""
             SELECT MIN({ts}) AS min_ts,
                    MAX({ts}) AS max_ts
-            FROM tensoryze.processexecution
+            FROM tensoryze.processexecution_time_opt
             """,
             None,
             "UTC/timestamp-range sanity",
@@ -69,14 +69,14 @@ def build_queries(sample_part_ids: list[str], target: str):
         "partquality_read": (
             """
             SELECT pe.*
-            FROM tensoryze.processexecution pe
+            FROM tensoryze.processexecution_time_opt pe
             WHERE pe.id IN (
                 SELECT part_id
                 FROM tensoryze.partquality
             )
             """,
             None,
-            "Read processexecution rows matching partquality dataset",
+            "Read processexecution_time_opt rows matching partquality dataset",
         ),
 
         "per_part_read": (
@@ -90,7 +90,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                     pe._value_str,
                     CAST(pe._value AS VARCHAR)
                 ) AS value
-            FROM tensoryze.processexecution pe
+            FROM tensoryze.processexecution_time_opt pe
             WHERE pe.id IN ({placeholders})
             ORDER BY pe.{ts} DESC
             """,
@@ -101,7 +101,7 @@ def build_queries(sample_part_ids: list[str], target: str):
         "count_rows": (
             """
             SELECT COUNT(*)
-            FROM tensoryze.processexecution
+            FROM tensoryze.processexecution_time_opt
             """,
             None,
             "Count all rows",
@@ -110,7 +110,7 @@ def build_queries(sample_part_ids: list[str], target: str):
         "time_range_read": (
             f"""
             SELECT *
-            FROM tensoryze.processexecution
+            FROM tensoryze.processexecution_time_opt
             WHERE {ts} >= {one_day_ago}
             ORDER BY {ts}
             """,
@@ -121,7 +121,7 @@ def build_queries(sample_part_ids: list[str], target: str):
         "count_time_window": (
             f"""
             SELECT COUNT(*)
-            FROM tensoryze.processexecution
+            FROM tensoryze.processexecution_time_opt
             WHERE {ts} >= {one_day_ago}
             """,
             None,
@@ -133,7 +133,7 @@ def build_queries(sample_part_ids: list[str], target: str):
             SELECT
                 {bucket_5min} AS bucket,
                 AVG(_value) AS avg_value
-            FROM tensoryze.processexecution
+            FROM tensoryze.processexecution_time_opt
             GROUP BY bucket
             ORDER BY bucket
             """,
@@ -147,7 +147,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                 {bucket_5min} AS bucket,
                 MIN(_value) AS min_value,
                 MAX(_value) AS max_value
-            FROM tensoryze.processexecution
+            FROM tensoryze.processexecution_time_opt
             GROUP BY bucket
             ORDER BY bucket
             """,
@@ -161,7 +161,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                 namespace_id,
                 {bucket_5min} AS bucket,
                 COUNT(*) AS total
-            FROM tensoryze.processexecution
+            FROM tensoryze.processexecution_time_opt
             GROUP BY namespace_id, bucket
             ORDER BY bucket
             """,
@@ -174,7 +174,7 @@ def build_queries(sample_part_ids: list[str], target: str):
             SELECT
                 {bucket_5min} AS bucket,
                 COUNT(DISTINCT id) AS parts
-            FROM tensoryze.processexecution
+            FROM tensoryze.processexecution_time_opt
             GROUP BY bucket
             ORDER BY bucket
             """,
@@ -187,7 +187,7 @@ def build_queries(sample_part_ids: list[str], target: str):
             SELECT
                 id,
                 COUNT(*) AS samples
-            FROM tensoryze.processexecution
+            FROM tensoryze.processexecution_time_opt
             GROUP BY id
             ORDER BY samples DESC
             LIMIT 100
@@ -214,7 +214,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                         PARTITION BY id
                         ORDER BY {ts} DESC
                     ) AS rn
-                FROM tensoryze.processexecution
+                FROM tensoryze.processexecution_time_opt
             ) t
             WHERE rn = 1
             """,
@@ -232,7 +232,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                     ORDER BY {ts}
                     ROWS BETWEEN 9 PRECEDING AND CURRENT ROW
                 ) AS rolling_avg
-            FROM tensoryze.processexecution
+            FROM tensoryze.processexecution_time_opt
             """,
             None,
             "Rolling average (window function)",
@@ -248,7 +248,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                     PARTITION BY id
                     ORDER BY {ts}
                 ) AS previous_value
-            FROM tensoryze.processexecution
+            FROM tensoryze.processexecution_time_opt
             """,
             None,
             "Previous value using LAG",
@@ -263,7 +263,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                     PARTITION BY id
                     ORDER BY {ts}
                 ) AS rn
-            FROM tensoryze.processexecution
+            FROM tensoryze.processexecution_time_opt
             """,
             None,
             "ROW_NUMBER window function",
@@ -276,7 +276,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                 AVG(pe._value) AS avg_value,
                 COUNT(*) AS total
             FROM tensoryze.partquality pq
-            JOIN tensoryze.processexecution pe
+            JOIN tensoryze.processexecution_time_opt pe
                 ON pe.id = pq.part_id
             GROUP BY pq.part_id
             """,
@@ -293,7 +293,7 @@ def build_queries(sample_part_ids: list[str], target: str):
             SELECT
                 time_bucket('5 minutes', {ts}) AS bucket,
                 AVG(_value) AS avg_value
-            FROM tensoryze.processexecution
+            FROM tensoryze.processexecution_time_opt
             GROUP BY bucket
             ORDER BY bucket
             """,
@@ -307,7 +307,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                 time_bucket('5 minutes', {ts}) AS bucket,
                 namespace_id,
                 COUNT(*) AS total
-            FROM tensoryze.processexecution
+            FROM tensoryze.processexecution_time_opt
             GROUP BY bucket, namespace_id
             ORDER BY bucket
             """,

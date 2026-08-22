@@ -3,11 +3,13 @@ import statistics
 from datetime import datetime
 
 import config
-from queries import build_queries
+#from queries import build_queries
+from queries_starrocks_opt import build_queries
 from report import init_results_file, append_result
 
 from adapters.postgres_adapter import PostgresAdapter
 from adapters.timescaledb_adapter import TimescaleDBAdapter
+from adapters.starrocks_adapter import StarRocksAdapter
 
 
 ADAPTERS = {
@@ -18,6 +20,10 @@ ADAPTERS = {
     "timescaledb": lambda: TimescaleDBAdapter(
         config.TIMESCALEDB_CONFIG,
         readonly=True
+    ),
+    "starrocks": lambda readonly: StarRocksAdapter(
+        config.STARROCKS_CONFIG,
+        readonly=readonly
     ),
 }
 
@@ -39,7 +45,7 @@ def run_queries_and_log(adapter, table_size_label, results_path: str):
     if not sample_part_ids:
         print("WARNING: No part IDs found. Skipping per-part query.")
 
-    queries = build_queries(sample_part_ids)
+    queries = build_queries(sample_part_ids, adapter.name.lower())
     today = datetime.now().strftime("%Y-%m-%d")
 
     # Storage footprint
@@ -129,7 +135,7 @@ def main():
 
     args = parser.parse_args()
 
-    adapter = ADAPTERS[args.target]()
+    adapter = ADAPTERS[args.target](readonly=True)
 
     results_path = init_results_file(
         config.RESULTS_DIR,

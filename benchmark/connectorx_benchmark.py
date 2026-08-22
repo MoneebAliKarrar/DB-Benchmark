@@ -119,7 +119,7 @@ def benchmark_connectorx(
     }
 
 
-def run_repeated(db_url, query, partition_on=None, partition_num=None, repeats=1):
+def run_repeated(db_url, query, partition_on=None, partition_num=None, repeats=5):
     """Run a query `repeats` times and return median/min/max latency in ms,
     plus the row count from the last run (should be constant across runs)."""
     timings_ms = []

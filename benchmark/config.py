@@ -51,3 +51,12 @@ TIMESCALEDB_CONFIG = {
 # --- Where results get written ---
 RESULTS_DIR = "results"
 VM_CONFIG_LABEL = "VM Config,8 vCPU / 251GiB RAM (no Docker memory limit)"  
+
+
+STARROCKS_CONFIG = {
+    "host": "starrocks-fe",
+    "port": 9030,
+    "user": "root",
+    "password": "",
+    "database": "tensoryze",
+}
