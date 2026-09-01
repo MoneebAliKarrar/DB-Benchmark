@@ -16,11 +16,16 @@ case "$TARGET" in
         exec /app/starrocks.sh
         ;;
 
+    clickhouse)
+        exec /app/clickhouse.sh
+        ;;
+
     *)
         echo "Usage:"
         echo "  ingestion postgres"
         echo "  ingestion timescaledb"
         echo "  ingestion starrocks"
+        echo "  ingestion clickhouse"
         exit 1
         ;;
 esac

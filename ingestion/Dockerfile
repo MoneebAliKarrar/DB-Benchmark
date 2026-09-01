@@ -16,11 +16,13 @@ COPY entrypoint.sh /app/entrypoint.sh
 COPY postgres.sh /app/postgres.sh
 COPY timescaledb.sh /app/timescaledb.sh
 COPY starrocks.sh /app/starrocks.sh
+COPY clickhouse.sh /app/clickhouse.sh
 
 RUN chmod +x \
     /app/entrypoint.sh \
     /app/postgres.sh \
     /app/timescaledb.sh \
-    /app/starrocks.sh
+    /app/starrocks.sh \
+    /app/clickhouse.sh
 
 ENTRYPOINT ["/app/entrypoint.sh"]

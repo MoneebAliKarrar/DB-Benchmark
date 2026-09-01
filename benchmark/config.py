@@ -33,7 +33,7 @@ QUERY_REPEATS = 5
 
 # --- Connection settings ---
 POSTGRES_CONFIG = {
-    "host": os.getenv("POSTGRES_HOST", "host.docker.internal"),
+    "host": os.getenv("POSTGRES_HOST", "tsdb_postgres"),
     "port": int(os.getenv("POSTGRES_PORT", 5432)),
     "dbname": os.getenv("POSTGRES_DB", "warehouse_restore"),
     "user": os.getenv("POSTGRES_USER", "admin"),
@@ -41,8 +41,8 @@ POSTGRES_CONFIG = {
 }
 
 TIMESCALEDB_CONFIG = {
-    "host": os.getenv("TIMESCALE_HOST", "host.docker.internal"),
-    "port": int(os.getenv("TIMESCALE_PORT", 5433)),
+    "host": os.getenv("TIMESCALE_HOST", "tsdb_timescaledb"),
+    "port": int(os.getenv("TIMESCALE_PORT", 5432)),
     "dbname": os.getenv("TIMESCALE_DB", "warehouse_restore"),
     "user": os.getenv("TIMESCALE_USER", "admin"),
     "password": os.getenv("TIMESCALE_PASSWORD", "admin"),
@@ -50,7 +50,7 @@ TIMESCALEDB_CONFIG = {
 
 # --- Where results get written ---
 RESULTS_DIR = "results"
-VM_CONFIG_LABEL = "VM Config,8 vCPU / 251GiB RAM (no Docker memory limit)"  
+VM_CONFIG_LABEL = "VM Config,8 vCPU / 32G RAM"  
 
 
 STARROCKS_CONFIG = {
@@ -58,5 +58,13 @@ STARROCKS_CONFIG = {
     "port": 9030,
     "user": "root",
     "password": "",
+    "database": "tensoryze",
+}
+
+CLICKHOUSE_CONFIG = {
+    "host": "tsdb_clickhouse",
+    "port": 8123,
+    "user": "admin",
+    "password": "admin",
     "database": "tensoryze",
 }

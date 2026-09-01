@@ -3,28 +3,37 @@ import statistics
 from datetime import datetime
 
 import config
-#from queries import build_queries
-from queries_starrocks_opt import build_queries
+from queries import build_queries
 from report import init_results_file, append_result
 
 from adapters.postgres_adapter import PostgresAdapter
 from adapters.timescaledb_adapter import TimescaleDBAdapter
 from adapters.starrocks_adapter import StarRocksAdapter
+from adapters.clickhouse_adapter import ClickHouseAdapter
 
 
 ADAPTERS = {
-    "postgres": lambda: PostgresAdapter(
+
+    "postgres": lambda readonly=False: PostgresAdapter(
         config.POSTGRES_CONFIG,
-        readonly=True
+        readonly=readonly
     ),
-    "timescaledb": lambda: TimescaleDBAdapter(
+
+    "timescaledb": lambda readonly=False: TimescaleDBAdapter(
         config.TIMESCALEDB_CONFIG,
-        readonly=True
+        readonly=readonly
     ),
-    "starrocks": lambda readonly: StarRocksAdapter(
+
+    "starrocks": lambda readonly=False: StarRocksAdapter(
         config.STARROCKS_CONFIG,
         readonly=readonly
     ),
+
+    "clickhouse": lambda readonly=False: ClickHouseAdapter(
+        config.CLICKHOUSE_CONFIG,
+        readonly=readonly,
+    ),
+
 }
 
 
@@ -36,7 +45,7 @@ def get_sample_part_ids(adapter, n: int) -> list[str]:
     return [row[0] for row in result]
 
 
-def run_queries_and_log(adapter, table_size_label, results_path: str):
+def run_queries_and_log(adapter, table_size_label, results_path: str ,target: str):
     sample_part_ids = get_sample_part_ids(
         adapter,
         config.SAMPLE_PART_ID_COUNT,
@@ -45,7 +54,10 @@ def run_queries_and_log(adapter, table_size_label, results_path: str):
     if not sample_part_ids:
         print("WARNING: No part IDs found. Skipping per-part query.")
 
-    queries = build_queries(sample_part_ids, adapter.name.lower())
+    queries = build_queries(
+        sample_part_ids,
+        target,
+    )
     today = datetime.now().strftime("%Y-%m-%d")
 
     # Storage footprint
@@ -102,7 +114,7 @@ def run_queries_and_log(adapter, table_size_label, results_path: str):
         )
 
 
-def run_readonly(adapter, results_path: str):
+def run_readonly(adapter, results_path: str,target):
     """
     Benchmark an existing table without modifying any data.
     """
@@ -118,6 +130,7 @@ def run_readonly(adapter, results_path: str):
         adapter,
         actual_rows,
         results_path,
+        target
     )
 
 
@@ -146,7 +159,7 @@ def main():
 
     try:
         adapter.setup()
-        run_readonly(adapter, results_path)
+        run_readonly(adapter, results_path,args.target)
     finally:
         adapter.close()
 
