@@ -1,10 +1,11 @@
-version: "3.8"
+version: "3.9"
 
 services:
 
   postgres:
     image: postgres:16
     container_name: tsdb_postgres
+    restart: unless-stopped
 
     environment:
       POSTGRES_USER: admin
@@ -15,27 +16,229 @@ services:
       - "5432:5432"
 
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - tsdb-research_pgdata:/var/lib/postgresql/data
+
+    cpus: 8
+    mem_limit: 32g
+    shm_size: "2gb"
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d warehouse_restore"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+    networks:
+      - tsdb-research_default
+
+
+  timescaledb:
+    image: timescale/timescaledb:latest-pg16
+    container_name: tsdb_timescaledb
+    restart: unless-stopped
+
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: warehouse_restore
+
+    ports:
+      - "5433:5432"
+
+    volumes:
+      - timescale_data:/var/lib/postgresql/data
+
+    cpus: 8
+    mem_limit: 32g
+    shm_size: "2gb"
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d warehouse_restore"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+    networks:
+      - db-benchmark-research_default
+
+
+  starrocks-fe:
+    image: starrocks/fe-ubuntu:4.0-latest
+    container_name: tsdb_starrocks_fe
+    hostname: starrocks-fe
+    user: root
+    restart: unless-stopped
+
+    command: >
+      bash /opt/starrocks/fe/bin/start_fe.sh --host_type FQDN
+
+    ports:
+      - "8030:8030"
+      - "9020:9020"
+      - "9030:9030"
+
+    volumes:
+      - starrocks_fe_data:/opt/starrocks/fe/meta
+      - starrocks_fe_log:/opt/starrocks/fe/log
+
+    environment:
+      - TZ=UTC
+
+    cpus: 1
+    mem_limit: 4g
+
+    networks:
+      - db-benchmark-research_default
+
+
+  starrocks-be:
+    image: starrocks/be-ubuntu:4.0-latest
+    container_name: tsdb_starrocks_be
+    hostname: starrocks-be
+    user: root
+    restart: unless-stopped
+
+    depends_on:
+      - starrocks-fe
+
+    command: >
+      bash /opt/starrocks/be/bin/start_be.sh
+
+    ports:
+      - "8040:8040"
+      - "9050:9050"
+      - "9060:9060"
+
+    volumes:
+      - starrocks_be_data:/opt/starrocks/be/storage
+      - starrocks_be_log:/opt/starrocks/be/log
+
+    environment:
+      - TZ=UTC
+
+    cpus: 7
+    mem_limit: 28g
+
+    networks:
+      - db-benchmark-research_default
+
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    container_name: tsdb_clickhouse
+    restart: unless-stopped
+
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+
+    environment:
+      CLICKHOUSE_DB: warehouse
+      CLICKHOUSE_USER: admin
+      CLICKHOUSE_PASSWORD: admin
+
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+
+    cpus: 8
+    mem_limit: 32g
+
+    networks:
+      - db-benchmark-research_default
+
 
   benchmark:
-
-    build: ./benchmark
+    build:
+      context: ./benchmark
 
     container_name: tsdb_benchmark
 
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      timescaledb:
+        condition: service_healthy
 
     volumes:
-      - ./benchmark/results:/app/results
-      - ./benchmark/reports:/app/reports
+      - ./benchmark:/app
+
+    networks:
+      - tsdb-research_default
+      - db-benchmark-research_default
+
+    command:
+      [
+        "python",
+        "benchmark.py",
+        "--target",
+        "postgres"
+      ]
+
+
+  ingestion:
+    build:
+      context: ./ingestion
+
+    container_name: tsdb_ingestion
+
+    volumes:
+      - ./data/sparkplug_synthetic:/data:ro
+      - ./results:/results
+
+    networks:
+      - tsdb-research_default
+      - db-benchmark-research_default
+
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: tsdb_pgadmin
+    restart: unless-stopped
+
+    ports:
+      - "0.0.0.0:5050:80"
 
     environment:
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: warehouse_restore
-      DB_USER: admin
-      DB_PASSWORD: admin
+      PGADMIN_DEFAULT_EMAIL: admin@example.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_SERVER_JSON_FILE: /pgadmin4/servers.json
+
+    volumes:
+      - ./infrastructure/pgadmin/servers.json:/pgadmin4/servers.json:ro
+      - pgadmin_data:/var/lib/pgadmin
+
+    networks:
+      - tsdb-research_default
+      - db-benchmark-research_default
+
 
 volumes:
-  pgdata:
+  tsdb-research_pgdata:
+    external: true
+  timescale_data:
+
+  starrocks_fe_data:
+  starrocks_fe_log:
+
+  starrocks_be_data:
+  starrocks_be_log:
+
+  clickhouse_data:
+  pgadmin_data:
+
+
+networks:
+
+  tsdb-research_default:
+    external: true
+
+  db-benchmark-research_default:
+    external: true

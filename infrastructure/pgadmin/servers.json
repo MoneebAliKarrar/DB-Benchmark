@@ -1,0 +1,23 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "PostgreSQL Benchmark",
+      "Group": "Benchmark Databases",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "warehouse_restore",
+      "Username": "admin",
+      "SSLMode": "prefer"
+    },
+
+    "2": {
+      "Name": "TimescaleDB Benchmark",
+      "Group": "Benchmark Databases",
+      "Host": "timescaledb",
+      "Port": 5432,
+      "MaintenanceDB": "warehouse_restore",
+      "Username": "admin",
+      "SSLMode": "prefer"
+    }
+  }
+}
