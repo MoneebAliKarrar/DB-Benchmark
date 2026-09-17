@@ -37,18 +37,38 @@ ADAPTERS = {
 }
 
 
-def get_sample_part_ids(adapter, n: int) -> list[str]:
-    result, _ = adapter.run_query(
-        "SELECT DISTINCT id FROM tensoryze.processexecution LIMIT %s;",
-        (n,),
-    )
+def get_sample_part_ids(
+    adapter,
+    n: int,
+    table: str = "tensoryze.processexecution",
+) -> list[str]:
+
+    if adapter.dialect == "clickhouse":
+        result, _ = adapter.run_query(
+            f"""
+            SELECT DISTINCT id
+            FROM {table}
+            LIMIT {n}
+            """
+        )
+    else:
+        result, _ = adapter.run_query(
+            f"""
+            SELECT DISTINCT id
+            FROM {table}
+            LIMIT %s
+            """,
+            (n,),
+        )
+
     return [row[0] for row in result]
 
 
-def run_queries_and_log(adapter, table_size_label, results_path: str ,target: str):
+def run_queries_and_log(adapter, table_size_label, results_path: str ,target: str, table:str):
     sample_part_ids = get_sample_part_ids(
         adapter,
         config.SAMPLE_PART_ID_COUNT,
+        table
     )
 
     if not sample_part_ids:
@@ -57,11 +77,12 @@ def run_queries_and_log(adapter, table_size_label, results_path: str ,target: st
     queries = build_queries(
         sample_part_ids,
         target,
+        table
     )
     today = datetime.now().strftime("%Y-%m-%d")
 
     # Storage footprint
-    size_mb = adapter.storage_size_mb()
+    size_mb = adapter.storage_size_mb(table)
 
     append_result(
         results_path,
@@ -114,12 +135,12 @@ def run_queries_and_log(adapter, table_size_label, results_path: str ,target: st
         )
 
 
-def run_readonly(adapter, results_path: str,target):
+def run_readonly(adapter, results_path: str,target, table: str):
     """
     Benchmark an existing table without modifying any data.
     """
 
-    actual_rows = adapter.row_count()
+    actual_rows = adapter.row_count(table)
 
     print(
         f"\n=== {adapter.name} (readonly): "
@@ -130,7 +151,8 @@ def run_readonly(adapter, results_path: str,target):
         adapter,
         actual_rows,
         results_path,
-        target
+        target,
+        table
     )
 
 
@@ -146,6 +168,12 @@ def main():
         help="Database to benchmark.",
     )
 
+    parser.add_argument(
+        "--table",
+        default="tensoryze.processexecution",
+        help="processexecution table to benchmark.",
+    )
+
     args = parser.parse_args()
 
     adapter = ADAPTERS[args.target](readonly=True)
@@ -158,8 +186,8 @@ def main():
     adapter.connect()
 
     try:
-        adapter.setup()
-        run_readonly(adapter, results_path,args.target)
+        adapter.setup(args.table)
+        run_readonly(adapter, results_path,args.target,args.table)
     finally:
         adapter.close()
 
