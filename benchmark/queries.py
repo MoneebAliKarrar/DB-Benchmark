@@ -12,7 +12,7 @@ Dialect-specific SQL is used only where syntax differs.
 Database-specific feature benchmarks should NOT be added to this file.
 """
 
-def build_queries(sample_part_ids: list[str], target: str):
+def build_queries(sample_part_ids: list[str], target: str,processexecution_table: str = "tensoryze.processexecution"):
 
     is_postgres = target == "postgres"
     is_timescaledb = target == "timescaledb"
@@ -67,7 +67,7 @@ def build_queries(sample_part_ids: list[str], target: str):
             DATE_SUB(
                 (
                     SELECT MAX({ts})
-                    FROM tensoryze.processexecution
+                    FROM {processexecution_table}
                 ),
                 INTERVAL 1 DAY
             )
@@ -78,7 +78,7 @@ def build_queries(sample_part_ids: list[str], target: str):
         one_day_ago = f"""
             (
                 SELECT MAX({ts}) - INTERVAL 1 DAY
-                FROM tensoryze.processexecution
+                FROM {processexecution_table}
             )
         """
 
@@ -87,7 +87,7 @@ def build_queries(sample_part_ids: list[str], target: str):
         one_day_ago = f"""
             (
                 SELECT MAX({ts}) - INTERVAL '1 day'
-                FROM tensoryze.processexecution
+                FROM {processexecution_table}
             )
         """
 
@@ -130,25 +130,25 @@ def build_queries(sample_part_ids: list[str], target: str):
     if is_starrocks:
         ago_1_hour = f"""
             DATE_SUB(
-                (SELECT MAX({ts}) FROM tensoryze.processexecution),
+                (SELECT MAX({ts}) FROM {processexecution_table}),
                 INTERVAL 1 HOUR
             )
         """
         ago_6_hours = f"""
             DATE_SUB(
-                (SELECT MAX({ts}) FROM tensoryze.processexecution),
+                (SELECT MAX({ts}) FROM {processexecution_table}),
                 INTERVAL 6 HOUR
             )
         """
         ago_7_days = f"""
             DATE_SUB(
-                (SELECT MAX({ts}) FROM tensoryze.processexecution),
+                (SELECT MAX({ts}) FROM {processexecution_table}),
                 INTERVAL 7 DAY
             )
         """
         ago_30_days = f"""
             DATE_SUB(
-                (SELECT MAX({ts}) FROM tensoryze.processexecution),
+                (SELECT MAX({ts}) FROM {processexecution_table}),
                 INTERVAL 30 DAY
             )
         """
@@ -157,25 +157,25 @@ def build_queries(sample_part_ids: list[str], target: str):
         ago_1_hour = f"""
             (
                 SELECT MAX({ts}) - INTERVAL 1 HOUR
-                FROM tensoryze.processexecution
+                FROM {processexecution_table}
             )
         """
         ago_6_hours = f"""
             (
                 SELECT MAX({ts}) - INTERVAL 6 HOUR
-                FROM tensoryze.processexecution
+                FROM {processexecution_table}
             )
         """
         ago_7_days = f"""
             (
                 SELECT MAX({ts}) - INTERVAL 7 DAY
-                FROM tensoryze.processexecution
+                FROM {processexecution_table}
             )
         """
         ago_30_days = f"""
             (
                 SELECT MAX({ts}) - INTERVAL 30 DAY
-                FROM tensoryze.processexecution
+                FROM {processexecution_table}
             )
         """
 
@@ -183,25 +183,25 @@ def build_queries(sample_part_ids: list[str], target: str):
         ago_1_hour = f"""
             (
                 SELECT MAX({ts}) - INTERVAL '1 hour'
-                FROM tensoryze.processexecution
+                FROM {processexecution_table}
             )
         """
         ago_6_hours = f"""
             (
                 SELECT MAX({ts}) - INTERVAL '6 hours'
-                FROM tensoryze.processexecution
+                FROM {processexecution_table}
             )
         """
         ago_7_days = f"""
             (
                 SELECT MAX({ts}) - INTERVAL '7 days'
-                FROM tensoryze.processexecution
+                FROM {processexecution_table}
             )
         """
         ago_30_days = f"""
             (
                 SELECT MAX({ts}) - INTERVAL '30 days'
-                FROM tensoryze.processexecution
+                FROM {processexecution_table}
             )
         """
 
@@ -216,9 +216,9 @@ def build_queries(sample_part_ids: list[str], target: str):
     
         # 1. Count all rows
         "count_rows": (
-            """
+            f"""
             SELECT COUNT(*)
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             """,
             None,
             "Count all rows",
@@ -230,7 +230,7 @@ def build_queries(sample_part_ids: list[str], target: str):
             SELECT
                 MIN({ts}) AS min_ts,
                 MAX({ts}) AS max_ts
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             """,
             None,
             "UTC/timestamp-range sanity",
@@ -248,7 +248,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                     pe._value_str,
                     CAST(pe._value AS VARCHAR)
                 ) AS value
-            FROM tensoryze.processexecution pe
+            FROM {processexecution_table} pe
             WHERE {part_filter}
             ORDER BY pe.{ts} DESC
             """,
@@ -260,7 +260,7 @@ def build_queries(sample_part_ids: list[str], target: str):
         "time_range_read": (
             f"""
             SELECT *
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             WHERE {ts} >= {one_day_ago}
             ORDER BY {ts}
             """,
@@ -272,7 +272,7 @@ def build_queries(sample_part_ids: list[str], target: str):
         "count_time_window": (
             f"""
             SELECT COUNT(*)
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             WHERE {ts} >= {one_day_ago}
             """,
             None,
@@ -281,9 +281,9 @@ def build_queries(sample_part_ids: list[str], target: str):
     
         # 6. Part-quality filtering
         "partquality_read": (
-            """
+            f"""
             SELECT pe.*
-            FROM tensoryze.processexecution pe
+            FROM {processexecution_table} pe
             WHERE pe.id IN (
                 SELECT part_id
                 FROM tensoryze.partquality
@@ -297,7 +297,7 @@ def build_queries(sample_part_ids: list[str], target: str):
         "arrow_stream_smoke_test": (
             f"""
             SELECT *
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             ORDER BY {ts} DESC
             LIMIT 100000
             """,
@@ -316,7 +316,7 @@ def build_queries(sample_part_ids: list[str], target: str):
             SELECT
                 {bucket_5min} AS bucket,
                 AVG(_value) AS avg_value
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             GROUP BY bucket
             ORDER BY bucket
             """,
@@ -331,7 +331,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                 {bucket_5min} AS bucket,
                 MIN(_value) AS min_value,
                 MAX(_value) AS max_value
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             GROUP BY bucket
             ORDER BY bucket
             """,
@@ -346,7 +346,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                 namespace_id,
                 {bucket_5min} AS bucket,
                 COUNT(*) AS total
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             GROUP BY namespace_id, bucket
             ORDER BY bucket
             """,
@@ -356,14 +356,14 @@ def build_queries(sample_part_ids: list[str], target: str):
     
         # 11. Group by namespace
         "group_by_namespace": (
-            """
+            f"""
             SELECT
                 namespace_id,
                 COUNT(*) AS total,
                 AVG(_value) AS avg_value,
                 MIN(_value) AS min_value,
                 MAX(_value) AS max_value
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             GROUP BY namespace_id
             ORDER BY total DESC
             """,
@@ -373,14 +373,14 @@ def build_queries(sample_part_ids: list[str], target: str):
     
         # 12. Group by field
         "group_by_field": (
-            """
+            f"""
             SELECT
                 _field,
                 COUNT(*) AS total,
                 AVG(_value) AS avg_value,
                 MIN(_value) AS min_value,
                 MAX(_value) AS max_value
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             GROUP BY _field
             ORDER BY total DESC
             """,
@@ -390,13 +390,13 @@ def build_queries(sample_part_ids: list[str], target: str):
     
         # 13. Group by namespace + field
         "group_by_namespace_field": (
-            """
+            f"""
             SELECT
                 namespace_id,
                 _field,
                 COUNT(*) AS total,
                 AVG(_value) AS avg_value
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             GROUP BY namespace_id, _field
             ORDER BY total DESC
             """,
@@ -406,14 +406,14 @@ def build_queries(sample_part_ids: list[str], target: str):
     
         # 14. Group by part
         "group_by_part": (
-            """
+            f"""
             SELECT
                 id,
                 COUNT(*) AS total,
                 AVG(_value) AS avg_value,
                 MIN(_value) AS min_value,
                 MAX(_value) AS max_value
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             GROUP BY id
             ORDER BY total DESC
             """,
@@ -430,7 +430,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                 _field,
                 COUNT(*) AS total,
                 AVG(_value) AS avg_value
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             GROUP BY bucket, namespace_id, _field
             ORDER BY bucket, namespace_id, _field
             """,
@@ -446,7 +446,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                 id,
                 COUNT(*) AS total,
                 AVG(_value) AS avg_value
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             GROUP BY bucket, id
             ORDER BY bucket, id
             """,
@@ -456,12 +456,12 @@ def build_queries(sample_part_ids: list[str], target: str):
     
         # 17. GROUP BY + HAVING
         "group_having_large_parts": (
-            """
+            f"""
             SELECT
                 id,
                 COUNT(*) AS total,
                 AVG(_value) AS avg_value
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             GROUP BY id
             HAVING COUNT(*) > 1000
             ORDER BY total DESC
@@ -472,7 +472,7 @@ def build_queries(sample_part_ids: list[str], target: str):
     
         # 18. Nested/two-stage aggregation
         "nested_grouping": (
-            """
+            f"""
             SELECT
                 namespace_id,
                 AVG(part_avg) AS avg_of_part_averages,
@@ -482,7 +482,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                     namespace_id,
                     id,
                     AVG(_value) AS part_avg
-                FROM tensoryze.processexecution
+                FROM {processexecution_table}
                 GROUP BY namespace_id, id
             ) t
             GROUP BY namespace_id
@@ -499,11 +499,11 @@ def build_queries(sample_part_ids: list[str], target: str):
     
         # 19. Top 100 parts
         "top_parts": (
-            """
+            f"""
             SELECT
                 id,
                 COUNT(*) AS samples
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             GROUP BY id
             ORDER BY samples DESC
             LIMIT 100
@@ -521,7 +521,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                 namespace_id,
                 _field,
                 _value
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             ORDER BY {ts} DESC
             LIMIT 1000000
             """,
@@ -537,7 +537,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                 {ts},
                 _field,
                 _value
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             ORDER BY id, {ts} DESC
             LIMIT 1000000
             """,
@@ -553,7 +553,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                 {ts},
                 namespace_id,
                 _value
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             WHERE _value IS NOT NULL
             ORDER BY _value DESC
             LIMIT 100000
@@ -568,7 +568,7 @@ def build_queries(sample_part_ids: list[str], target: str):
             SELECT
                 {bucket_5min} AS bucket,
                 COUNT(DISTINCT id) AS parts
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             GROUP BY bucket
             ORDER BY bucket
             """,
@@ -578,11 +578,11 @@ def build_queries(sample_part_ids: list[str], target: str):
     
         # 24. Distinct namespace-field combinations
         "distinct_namespace_field": (
-            """
+            f"""
             SELECT DISTINCT
                 namespace_id,
                 _field
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             ORDER BY namespace_id, _field
             """,
             None,
@@ -591,11 +591,11 @@ def build_queries(sample_part_ids: list[str], target: str):
     
         # 25. Distinct fields per namespace
         "distinct_fields_per_namespace": (
-            """
+            f"""
             SELECT
                 namespace_id,
                 COUNT(DISTINCT _field) AS distinct_fields
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             GROUP BY namespace_id
             ORDER BY distinct_fields DESC
             """,
@@ -605,13 +605,13 @@ def build_queries(sample_part_ids: list[str], target: str):
     
         # 26. GROUP BY + multi-column ORDER BY
         "group_order_multiple_columns": (
-            """
+            f"""
             SELECT
                 namespace_id,
                 _field,
                 COUNT(*) AS total,
                 AVG(_value) AS avg_value
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             GROUP BY namespace_id, _field
             ORDER BY
                 namespace_id ASC,
@@ -645,7 +645,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                         PARTITION BY id
                         ORDER BY {ts} DESC
                     ) AS rn
-                FROM tensoryze.processexecution
+                FROM {processexecution_table}
             ) t
             WHERE rn = 1
             """,
@@ -671,7 +671,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                         PARTITION BY id
                         ORDER BY {ts} DESC
                     ) AS rn
-                FROM tensoryze.processexecution
+                FROM {processexecution_table}
             ) t
             WHERE rn <= 10
             """,
@@ -690,7 +690,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                     ORDER BY {ts}
                     ROWS BETWEEN 9 PRECEDING AND CURRENT ROW
                 ) AS rolling_avg
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             """,
             None,
             "10-row rolling average",
@@ -707,7 +707,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                     PARTITION BY id
                     ORDER BY {ts}
                 ) AS previous_value
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             """,
             None,
             "Previous value using LAG",
@@ -723,7 +723,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                     PARTITION BY id
                     ORDER BY {ts}
                 ) AS rn
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             """,
             None,
             "ROW_NUMBER window function",
@@ -731,7 +731,7 @@ def build_queries(sample_part_ids: list[str], target: str):
     
         # 32. Ranking aggregated parts
         "rank_parts_by_count": (
-            """
+            f"""
             SELECT
                 id,
                 total,
@@ -742,7 +742,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                 SELECT
                     id,
                     COUNT(*) AS total
-                FROM tensoryze.processexecution
+                FROM {processexecution_table}
                 GROUP BY id
             ) t
             """,
@@ -761,7 +761,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                     PARTITION BY id
                     ORDER BY _value DESC
                 ) AS value_rank
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             WHERE _value IS NOT NULL
             """,
             None,
@@ -775,13 +775,13 @@ def build_queries(sample_part_ids: list[str], target: str):
     
         # 34. Join + aggregation
         "join_avg_partquality": (
-            """
+            f"""
             SELECT
                 pq.part_id,
                 AVG(pe._value) AS avg_value,
                 COUNT(*) AS total
             FROM tensoryze.partquality pq
-            JOIN tensoryze.processexecution pe
+            JOIN {processexecution_table} pe
                 ON pe.id = pq.part_id
             GROUP BY pq.part_id
             """,
@@ -798,7 +798,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                 pe._field,
                 pe._value
             FROM tensoryze.partquality pq
-            JOIN tensoryze.processexecution pe
+            JOIN {processexecution_table} pe
                 ON pe.id = pq.part_id
             LIMIT 1000000
             """,
@@ -814,7 +814,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                 COUNT(*) AS total,
                 AVG(pe._value) AS avg_value
             FROM tensoryze.partquality pq
-            JOIN tensoryze.processexecution pe
+            JOIN {processexecution_table} pe
                 ON pe.id = pq.part_id
             WHERE pe.{ts} >= {one_day_ago}
             GROUP BY pq.part_id
@@ -826,14 +826,14 @@ def build_queries(sample_part_ids: list[str], target: str):
     
         # 37. Join + GROUP BY multiple dimensions
         "join_group_field": (
-            """
+            f"""
             SELECT
                 pq.part_id,
                 pe._field,
                 COUNT(*) AS total,
                 AVG(pe._value) AS avg_value
             FROM tensoryze.partquality pq
-            JOIN tensoryze.processexecution pe
+            JOIN {processexecution_table} pe
                 ON pe.id = pq.part_id
             GROUP BY
                 pq.part_id,
@@ -846,9 +846,9 @@ def build_queries(sample_part_ids: list[str], target: str):
     
         # 38. EXISTS subquery
         "exists_partquality": (
-            """
+            f"""
             SELECT COUNT(*)
-            FROM tensoryze.processexecution pe
+            FROM {processexecution_table} pe
             WHERE EXISTS (
                 SELECT 1
                 FROM tensoryze.partquality pq
@@ -872,7 +872,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                 namespace_id,
                 _field,
                 _value
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             WHERE _value > 0
             """,
             None,
@@ -881,9 +881,9 @@ def build_queries(sample_part_ids: list[str], target: str):
     
         # 40. NULL filtering
         "filter_not_null": (
-            """
+            f"""
             SELECT COUNT(*)
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             WHERE _value IS NOT NULL
             """,
             None,
@@ -899,7 +899,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                 namespace_id,
                 _field,
                 _value
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             WHERE
                 {ts} >= {one_day_ago}
                 AND _value IS NOT NULL
@@ -917,7 +917,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                 {ts},
                 namespace_id,
                 _value
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             WHERE _value IS NOT NULL
             ORDER BY {ts} DESC
             LIMIT 500000
@@ -933,7 +933,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                 id,
                 {ts},
                 _value
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             WHERE
                 {ts} >= {one_day_ago}
                 AND _value IS NOT NULL
@@ -946,11 +946,11 @@ def build_queries(sample_part_ids: list[str], target: str):
     
         # 44. String-field filter
         "filter_field_not_null": (
-            """
+            f"""
             SELECT
                 _field,
                 COUNT(*) AS total
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             WHERE _field IS NOT NULL
             GROUP BY _field
             ORDER BY total DESC
@@ -966,7 +966,7 @@ def build_queries(sample_part_ids: list[str], target: str):
     
         # 45. Aggregation + ranking
         "rank_namespaces": (
-            """
+            f"""
             SELECT
                 namespace_id,
                 total,
@@ -979,7 +979,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                     namespace_id,
                     COUNT(*) AS total,
                     AVG(_value) AS avg_value
-                FROM tensoryze.processexecution
+                FROM {processexecution_table}
                 GROUP BY namespace_id
             ) t
             """,
@@ -1002,7 +1002,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                 SELECT
                     {bucket_5min} AS bucket,
                     COUNT(*) AS total
-                FROM tensoryze.processexecution
+                FROM {processexecution_table}
                 GROUP BY bucket
             ) t
             ORDER BY bucket
@@ -1022,7 +1022,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                     PARTITION BY id
                     ORDER BY {ts}
                 ) AS value_difference
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             WHERE _value IS NOT NULL
             """,
             None,
@@ -1041,7 +1041,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                     ROWS BETWEEN UNBOUNDED PRECEDING
                     AND CURRENT ROW
                 ) AS cumulative_avg
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             """,
             None,
             "Cumulative average for each part",
@@ -1059,7 +1059,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                     ROWS BETWEEN UNBOUNDED PRECEDING
                     AND CURRENT ROW
                 ) AS cumulative_count
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             """,
             None,
             "Cumulative record count per part",
@@ -1067,12 +1067,12 @@ def build_queries(sample_part_ids: list[str], target: str):
     
         # 50. Nested aggregation + top-N
         "top_parts_by_avg_value": (
-            """
+            f"""
             SELECT
                 id,
                 AVG(_value) AS avg_value,
                 COUNT(*) AS total
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             WHERE _value IS NOT NULL
             GROUP BY id
             HAVING COUNT(*) > 100
@@ -1091,7 +1091,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                 namespace_id,
                 COUNT(*) AS total,
                 AVG(_value) AS avg_value
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             GROUP BY
                 bucket,
                 namespace_id
@@ -1111,7 +1111,7 @@ def build_queries(sample_part_ids: list[str], target: str):
                 namespace_id,
                 MAX({ts}) AS latest_timestamp,
                 COUNT(*) AS total
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             GROUP BY namespace_id
             ORDER BY latest_timestamp DESC
             """,
@@ -1131,7 +1131,7 @@ def build_queries(sample_part_ids: list[str], target: str):
         "selectivity_1_hour": (
             f"""
             SELECT COUNT(*)
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             WHERE {ts} >= {ago_1_hour}
             """,
             None,
@@ -1142,7 +1142,7 @@ def build_queries(sample_part_ids: list[str], target: str):
         "selectivity_6_hours": (
             f"""
             SELECT COUNT(*)
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             WHERE {ts} >= {ago_6_hours}
             """,
             None,
@@ -1153,7 +1153,7 @@ def build_queries(sample_part_ids: list[str], target: str):
         "selectivity_1_day": (
             f"""
             SELECT COUNT(*)
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             WHERE {ts} >= {one_day_ago}
             """,
             None,
@@ -1164,7 +1164,7 @@ def build_queries(sample_part_ids: list[str], target: str):
         "selectivity_7_days": (
             f"""
             SELECT COUNT(*)
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             WHERE {ts} >= {ago_7_days}
             """,
             None,
@@ -1175,7 +1175,7 @@ def build_queries(sample_part_ids: list[str], target: str):
         "selectivity_30_days": (
             f"""
             SELECT COUNT(*)
-            FROM tensoryze.processexecution
+            FROM {processexecution_table}
             WHERE {ts} >= {ago_30_days}
             """,
             None,

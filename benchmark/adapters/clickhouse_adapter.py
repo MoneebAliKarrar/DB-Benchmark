@@ -56,31 +56,40 @@ class ClickHouseAdapter(BaseAdapter):
     # Setup
     # --------------------------------------------------
 
-    def setup(self):
+    def setup(self, table: str = "tensoryze.processexecution"):
         """
         readonly=True:
-            Verify the benchmark table exists.
+            Verify the requested benchmark table exists.
 
         readonly=False:
             Create the database and disposable benchmark tables.
         """
 
         if self.readonly:
+            if "." in table:
+                database, table_name = table.split(".", 1)
+            else:
+                database = self.config.get("database", "tensoryze")
+                table_name = table
+
             result = self.client.query(
                 """
                 SELECT count()
                 FROM system.tables
-                WHERE database = 'tensoryze'
-                  AND name = 'processexecution'
-                """
+                WHERE database = {database:String}
+                  AND name = {table_name:String}
+                """,
+                parameters={
+                    "database": database,
+                    "table_name": table_name,
+                },
             )
 
             exists = result.result_rows[0][0]
 
             if exists != 1:
                 raise RuntimeError(
-                    "readonly=True but "
-                    "tensoryze.processexecution does not exist."
+                    f"readonly=True but {table} does not exist."
                 )
 
             return
@@ -324,11 +333,14 @@ class ClickHouseAdapter(BaseAdapter):
     # Row count
     # --------------------------------------------------
 
-    def row_count(self) -> int:
+    def row_count(
+        self,
+        table: str = "tensoryze.processexecution",
+    ) -> int:
         result = self.client.query(
-            """
+            f"""
             SELECT count()
-            FROM tensoryze.processexecution
+            FROM {table}
             """
         )
 
@@ -338,26 +350,36 @@ class ClickHouseAdapter(BaseAdapter):
     # Storage size
     # --------------------------------------------------
 
-    def storage_size_mb(self) -> float:
+    def storage_size_mb(
+        self,
+        table: str = "tensoryze.processexecution",
+    ) -> float:
         """
-        ClickHouse stores MergeTree data as active data parts.
+        Return the physical on-disk size of the requested
+        ClickHouse MergeTree table.
 
-        system.parts.bytes_on_disk gives the total on-disk size
-        of each part, so summing active parts gives the physical
-        table footprint.
-
-        This includes compressed column data, indexes, marks,
-        and other part-level files.
+        system.parts.bytes_on_disk includes compressed column data,
+        indexes, marks, and other part-level files.
         """
+
+        if "." in table:
+            database, table_name = table.split(".", 1)
+        else:
+            database = self.config.get("database", "tensoryze")
+            table_name = table
 
         result = self.client.query(
             """
             SELECT coalesce(sum(bytes_on_disk), 0)
             FROM system.parts
-            WHERE database = 'tensoryze'
-              AND table = 'processexecution'
+            WHERE database = {database:String}
+              AND table = {table_name:String}
               AND active
-            """
+            """,
+            parameters={
+                "database": database,
+                "table_name": table_name,
+            },
         )
 
         size_bytes = int(result.result_rows[0][0])
