@@ -50,8 +50,7 @@ TIMESCALEDB_CONFIG = {
 
 # --- Where results get written ---
 RESULTS_DIR = "results"
-VM_CONFIG_LABEL = "VM Config,8 vCPU / 32G RAM"  
-
+VM_CONFIG_LABEL = "Distributed 2-shard, 2 x (8 vCPU / 32G RAM)"
 
 STARROCKS_CONFIG = {
     "host": "starrocks-fe",
@@ -62,9 +61,9 @@ STARROCKS_CONFIG = {
 }
 
 CLICKHOUSE_CONFIG = {
-    "host": "tsdb_clickhouse",
-    "port": 8123,
-    "user": "admin",
-    "password": "admin",
+    "host": os.getenv("CLICKHOUSE_HOST", "tsdb_clickhouse"),
+    "port": int(os.getenv("CLICKHOUSE_PORT", "8123")),
+    "user": os.getenv("CLICKHOUSE_USER", "admin"),
+    "password": os.getenv("CLICKHOUSE_PASSWORD", "admin"),
     "database": "tensoryze",
 }

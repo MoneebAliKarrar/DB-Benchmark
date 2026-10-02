@@ -12,7 +12,7 @@ HEADER = [
 
 def init_results_file(results_dir: str, target: str) -> str:
     os.makedirs(results_dir, exist_ok=True)
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
     path = os.path.join(results_dir, f"{target}_{timestamp}.csv")
     with open(path, "w", newline="") as f:
         writer = csv.writer(f)
