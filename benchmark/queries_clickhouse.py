@@ -53,17 +53,17 @@ def build_queries(sample_part_ids: list[str], target: str = "clickhouse"):
             "UTC/timestamp-range sanity",
         ),
 
-        "partquality_read": (
+        "partquality_local_dist_read": (
             f"""
             SELECT pe.*
             FROM {table} AS pe
             WHERE pe.id IN (
                 SELECT part_id
-                FROM tensoryze.partquality
+                FROM tensoryze.partquality_local_dist
             )
             """,
             None,
-            "Read processexecution rows matching partquality dataset",
+            "Read processexecution rows matching partquality_local_dist dataset",
         ),
 
         "per_part_read": (
@@ -266,19 +266,19 @@ def build_queries(sample_part_ids: list[str], target: str = "clickhouse"):
             "ROW_NUMBER window function",
         ),
 
-        "join_avg_partquality": (
+        "join_avg_partquality_local_dist": (
             f"""
             SELECT
                 pq.part_id,
                 avg(pe._value) AS avg_value,
                 count() AS total
-            FROM tensoryze.partquality AS pq
+            FROM tensoryze.partquality_local_dist AS pq
             INNER JOIN {table} AS pe
                 ON pe.id = pq.part_id
             GROUP BY pq.part_id
             """,
             None,
-            "Join with partquality and aggregate",
+            "Join with partquality_local_dist and aggregate",
         ),
 
         # --------------------------------------------------

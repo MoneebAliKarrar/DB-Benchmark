@@ -139,6 +139,7 @@ services:
 
     volumes:
       - clickhouse_data:/var/lib/clickhouse
+      - ./clickhouse/config.d/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml:ro
 
     ulimits:
       nofile:

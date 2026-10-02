@@ -1,0 +1,25 @@
+<clickhouse>
+    <remote_servers>
+        <faps_2shards>
+
+            <shard>
+                <replica>
+                    <host>192.168.209.185</host>
+                    <port>9000</port>
+                    <user>admin</user>
+                    <password>admin</password>
+                </replica>
+            </shard>
+
+            <shard>
+                <replica>
+                    <host>192.168.209.86</host>
+                    <port>9000</port>
+                    <user>admin</user>
+                    <password>admin</password>
+                </replica>
+            </shard>
+
+        </faps_2shards>
+    </remote_servers>
+</clickhouse>

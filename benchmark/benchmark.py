@@ -106,10 +106,20 @@ def run_queries_and_log(adapter, table_size_label, results_path: str ,target: st
             continue
 
         timings = []
+        query_error = None
 
         for _ in range(config.QUERY_REPEATS):
-            _, elapsed = adapter.run_query(sql, params)
-            timings.append(elapsed * 1000)  # milliseconds
+            try:
+                _, elapsed = adapter.run_query(sql, params)
+                timings.append(elapsed * 1000)  # milliseconds
+            except Exception as e:
+                query_error = str(e)
+                break
+
+        if query_error:
+            print(f"  {description:<45} UNSUPPORTED/FAILED")
+            print(f"    {query_error}")
+            continue
 
         median_ms = round(statistics.median(timings), 2)
         min_ms = round(min(timings), 2)
